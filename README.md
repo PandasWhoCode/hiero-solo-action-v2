@@ -182,12 +182,54 @@ You can test this action locally on your CLI before using it in a workflow.
 
 ### Prerequisites for Local Testing
 
+#### Hardware Requirements
+
+To run Solo locally for a one-node network, ensure your system meets these
+minimum requirements (from
+[Solo documentation](https://solo.hiero.org/v0.47.0/docs/readme/#hardware-requirements)):
+
+- **Memory**: At least 12GB RAM
+- **CPU**: At least 4 CPU cores
+- **Disk Space**: 20GB+ free disk space recommended
+
+#### Docker Configuration
+
+Configure Docker Desktop with sufficient resources:
+
+- **Memory**: 12GB or more
+- **CPUs**: 4 or more
+- **Swap**: 2GB recommended
+- **Disk Image Size**: 60GB+ recommended
+
+On Docker Desktop, you can configure these settings in:
+
+- **macOS/Windows**: Docker Desktop → Preferences/Settings → Resources
+- **Linux**: Edit `/etc/docker/daemon.json` and restart Docker
+
+Example Docker daemon configuration for Linux:
+
+```json
+{
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 65536,
+      "Name": "nofile",
+      "Soft": 65536
+    }
+  }
+}
+```
+
+#### Software Requirements
+
 Ensure you have the following installed on your system:
 
 - **Node.js 20+** (check with `node --version`)
 - **npm** (check with `npm --version`)
 - **Java 21** (check with `java -version`)
 - **Docker** (check with `docker --version`)
+  - Must be running with the resource requirements above
+  - Verify: `docker info` should show sufficient memory/CPUs
 - **kubectl** (check with `kubectl version --client`)
 - **kind** (Kubernetes in Docker) - Install with:
   ```bash
@@ -352,6 +394,16 @@ rm -rf ~/.solo
 
 ### Troubleshooting Local Testing
 
+**Issue: Insufficient Docker resources**
+
+- Error messages about memory, CPU, or container failures
+- Solution: Increase Docker Desktop resources (Settings → Resources)
+  - Set Memory to at least 12GB
+  - Set CPUs to at least 4
+  - Set Disk Image Size to at least 60GB
+- Verify configuration: `docker info | grep -E "(CPUs|Memory)"`
+- Restart Docker Desktop after changing resource limits
+
 **Issue: `kind` command not found**
 
 - Install Kind following the prerequisites above
@@ -360,22 +412,33 @@ rm -rf ~/.solo
 
 - Start Docker: `sudo systemctl start docker`
 - Or use Docker Desktop if on macOS/Windows
+- Verify Docker is running: `docker ps`
 
 **Issue: Port already in use**
 
 - Change the port numbers in `.env` file
 - Or stop the conflicting service
+- Check what's using a port: `lsof -i :50211` (replace with your port)
 
 **Issue: Solo CLI installation fails**
 
 - Check Node.js version: `node --version` (should be 20+)
 - Try installing Solo globally: `npm install -g @hashgraph/solo@0.46.1`
+- Clear npm cache: `npm cache clean --force`
 
 **Issue: Kubernetes cluster creation fails**
 
-- Ensure Docker is running
+- Ensure Docker is running with sufficient resources (see above)
 - Check disk space: `df -h`
 - Try: `kind delete cluster --name solo-e2e` and retry
+- Check Docker daemon logs for resource constraints
+
+**Issue: Solo deployment hangs or fails**
+
+- Check Docker resource usage: `docker stats`
+- Ensure no other resource-intensive processes are running
+- Verify Solo logs: `kubectl logs -n solo <pod-name>`
+- Try with minimal configuration first (no mirror node, no relay)
 
 ## License
 
