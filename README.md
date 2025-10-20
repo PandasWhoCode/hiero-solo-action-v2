@@ -176,6 +176,207 @@ npm run lint
 npm run format:write
 ```
 
+## Local Testing
+
+You can test this action locally on your CLI before using it in a workflow.
+
+### Prerequisites for Local Testing
+
+Ensure you have the following installed on your system:
+
+- **Node.js 20+** (check with `node --version`)
+- **npm** (check with `npm --version`)
+- **Java 21** (check with `java -version`)
+- **Docker** (check with `docker --version`)
+- **kubectl** (check with `kubectl version --client`)
+- **kind** (Kubernetes in Docker) - Install with:
+  ```bash
+  curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64
+  chmod +x ./kind
+  sudo mv ./kind /usr/local/bin/kind
+  ```
+
+### Step-by-Step Local Testing Instructions
+
+#### 1. Clone and Setup the Repository
+
+```bash
+git clone https://github.com/PandasWhoCode/hiero-solo-action-v2.git
+cd hiero-solo-action-v2
+npm install
+```
+
+#### 2. Build the Action
+
+```bash
+npm run bundle
+```
+
+This will format, lint, test, and package the action into `dist/index.js`.
+
+#### 3. Configure Environment Variables
+
+Create a `.env` file from the example template:
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file to configure the action inputs. For example, to test with a
+mirror node:
+
+```bash
+# Enable debug logging
+ACTIONS_STEP_DEBUG=true
+
+# Install mirror node
+INPUT_INSTALLMIRRORNODE=true
+
+# Use specific versions
+INPUT_HIEROVERSION=v0.66.0
+INPUT_MIRRORNODEVERSION=v0.138.0
+INPUT_SOLOVERSION=0.46.1
+
+# Configure ports (defaults shown)
+INPUT_HAPROXYPORT=50211
+INPUT_MIRRORNODEPORTREST=5551
+INPUT_MIRRORNODEPORTGRPC=5600
+INPUT_MIRRORNODEPORTWEB3REST=8545
+
+# Configure HBAR amount
+INPUT_HBARAMOUNT=10000000
+
+# Optional: Install JSON-RPC-Relay
+INPUT_INSTALLRELAY=false
+INPUT_RELAYPORT=7546
+```
+
+**Important**: Input names in the `.env` file use underscores and uppercase:
+
+- `installMirrorNode` → `INPUT_INSTALLMIRRORNODE`
+- `hieroVersion` → `INPUT_HIEROVERSION`
+- `mirrorNodeVersion` → `INPUT_MIRRORNODEVERSION`
+- etc.
+
+#### 4. Run the Action Locally
+
+Use the `@github/local-action` tool to run the action:
+
+```bash
+npm run local-action
+```
+
+This command executes `npx @github/local-action . src/main.ts .env`, which:
+
+- Loads environment variables from `.env`
+- Runs the action's main logic from `src/main.ts`
+- Simulates the GitHub Actions runtime environment
+
+#### 5. Monitor the Output
+
+The action will:
+
+1. Install the Solo CLI globally
+2. Create a Kubernetes cluster using Kind
+3. Deploy the Hiero consensus node
+4. Optionally deploy the Mirror Node (if `INPUT_INSTALLMIRRORNODE=true`)
+5. Optionally deploy the JSON-RPC-Relay (if `INPUT_INSTALLRELAY=true`)
+6. Create ECDSA and ED25519 accounts
+7. Output account information
+
+Watch for log output showing:
+
+```
+Solo version: 0.46.1, >= 0.44.0: true
+Creating Kubernetes cluster...
+Initializing Solo CLI...
+Deploying Solo network...
+Creating ECDSA account...
+Creating ED25519 account...
+Account ID: 0.0.1234
+Public Key: 302a300506032b6570032100...
+Private Key: 302e020100300506032b657004220420...
+```
+
+#### 6. Verify the Deployment
+
+Once the action completes, you can verify the deployment:
+
+```bash
+# Check Kubernetes cluster
+kind get clusters
+
+# Check deployed pods
+kubectl get pods -n solo
+
+# Check services
+kubectl get svc -n solo
+
+# Test connectivity to consensus node
+curl http://localhost:50211/health
+```
+
+#### 7. Test with Different Configurations
+
+Modify `.env` to test different scenarios:
+
+**Minimal setup (no mirror node, no relay):**
+
+```bash
+INPUT_INSTALLMIRRORNODE=false
+INPUT_INSTALLRELAY=false
+INPUT_SOLOVERSION=0.46.1
+INPUT_HBARAMOUNT=5000000
+```
+
+**Full setup (with mirror node and relay):**
+
+```bash
+INPUT_INSTALLMIRRORNODE=true
+INPUT_INSTALLRELAY=true
+INPUT_MIRRORNODEVERSION=v0.138.0
+INPUT_HBARAMOUNT=20000000
+```
+
+#### 8. Cleanup After Testing
+
+After testing, clean up the Kind cluster and Solo configuration:
+
+```bash
+# Delete the Kind cluster
+kind delete cluster --name solo-e2e
+
+# Remove Solo configuration
+rm -rf ~/.solo
+```
+
+### Troubleshooting Local Testing
+
+**Issue: `kind` command not found**
+
+- Install Kind following the prerequisites above
+
+**Issue: Docker daemon not running**
+
+- Start Docker: `sudo systemctl start docker`
+- Or use Docker Desktop if on macOS/Windows
+
+**Issue: Port already in use**
+
+- Change the port numbers in `.env` file
+- Or stop the conflicting service
+
+**Issue: Solo CLI installation fails**
+
+- Check Node.js version: `node --version` (should be 20+)
+- Try installing Solo globally: `npm install -g @hashgraph/solo@0.46.1`
+
+**Issue: Kubernetes cluster creation fails**
+
+- Ensure Docker is running
+- Check disk space: `df -h`
+- Try: `kind delete cluster --name solo-e2e` and retry
+
 ## License
 
 This project is licensed under the Apache License 2.0 - see the
