@@ -1,0 +1,93 @@
+name: 'Hiero Solo Action'
+description: 'Run a Hiero based network by using the solo tool'
+author: 'PandasWhoCode'
+
+# Branding
+branding:
+  icon: 'share-2'
+  color: 'black'
+
+# Define inputs
+inputs:
+  installMirrorNode:
+    description: 'Defines if a mirror node should be installed'
+    required: true
+    default: 'false'
+  hieroVersion:
+    description: 'Version of Hiero consensus node to be used'
+    required: false
+    default: 'v0.66.0'
+  mirrorNodeVersion:
+    description: 'Version of the mirror node to be used'
+    required: false
+    default: 'v0.138.0'
+  mirrorNodePortRest:
+    description: 'Port for Mirror Node REST API'
+    required: false
+    default: '5551'
+  mirrorNodePortGrpc:
+    description: 'Port for Mirror Node gRPC'
+    required: false
+    default: '5600'
+  mirrorNodePortWeb3Rest:
+    description: 'Port for Mirror Node WEB3 REST'
+    required: false
+    default: '8545'
+  installRelay:
+    description: 'Install JSON-RPC-Relay'
+    required: false
+    default: 'false'
+  relayPort:
+    description: 'Port for JSON-RPC-Relay'
+    required: false
+    default: '7546'
+  grpcProxyPort:
+    description: 'Port for gRPC Proxy'
+    required: false
+    default: '9998'
+  haproxyPort:
+    description: 'Port for HAProxy'
+    required: false
+    default: '50211'
+  soloVersion:
+    description: 'Version of Solo CLI to install'
+    required: false
+    default: '0.46.1'
+  javaRestApiPort:
+    description: 'Port for Java-based REST API'
+    required: false
+    default: '8084'
+  hbarAmount:
+    description: 'Amount of HBAR to be assigned to the created accounts'
+    required: false
+    default: '10000000'
+
+# Define outputs
+outputs:
+  accountId:
+    description:
+      'Account ID of the generated ED25519 account (default for simplicity)'
+  publicKey:
+    description:
+      'Public key of the generated ED25519 account (default for simplicity)'
+  privateKey:
+    description:
+      'Private key of the generated ED25519 account (default for simplicity)'
+  deployment:
+    description: 'Name of the Solo deployment created by the action'
+  ecdsaAccountId:
+    description: 'ECDSA account id of generated account'
+  ecdsaPublicKey:
+    description: 'ECDSA public key of generated account'
+  ecdsaPrivateKey:
+    description: 'ECDSA private key of generated account'
+  ed25519AccountId:
+    description: 'ED25519 account id of generated account'
+  ed25519PublicKey:
+    description: 'ED25519 public key of generated account'
+  ed25519PrivateKey:
+    description: 'ED25519 private key of generated account'
+
+runs:
+  using: node24
+  main: dist/index.js
