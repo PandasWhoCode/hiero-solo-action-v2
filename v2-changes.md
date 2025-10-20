@@ -21,6 +21,8 @@ test coverage while preserving 100% functional parity with v1.
 - [How to Review the Changes](#how-to-review-the-changes)
 - [Migration for Users](#migration-for-users)
 - [Technical Implementation Details](#technical-implementation-details)
+- [CI/CD Implementation and Fixes](#cicd-implementation-and-fixes)
+- [Summary](#summary)
 
 ---
 
@@ -234,6 +236,54 @@ version number:
 - `npm run package` - Bundle the action
 - `npm run bundle` - Complete build pipeline
 
+### 4. **CI/CD Workflows**
+
+**Not available in v1** → **Full CI/CD pipeline in v2**
+
+Three comprehensive GitHub Actions workflows in `.github/workflows/`:
+
+#### a. **Continuous Integration (ci.yml)**
+- **Triggers:** Pull requests and pushes to main branch
+- **Steps:**
+  - Checkout code
+  - Setup Node.js 20 with npm caching
+  - Install dependencies
+  - Format check (Prettier)
+  - Lint check (ESLint)
+  - Run tests with coverage
+  - Upload coverage to Codecov (optional)
+- **Benefits:** Ensures code quality and test coverage on every change
+
+#### b. **Check Transpiled JavaScript (check-dist.yml)**
+- **Triggers:** Pull requests and pushes to main branch
+- **Purpose:** Verifies `dist/index.js` is up to date with source code
+- **Steps:**
+  - Checkout code
+  - Setup Node.js and install dependencies
+  - Rebuild dist/
+  - Compare rebuilt dist/ with committed dist/
+  - Upload artifact if mismatch detected
+- **Benefits:** Prevents outdated bundled code from being merged
+
+#### c. **CodeQL Analysis (codeql-analysis.yml)**
+- **Triggers:** 
+  - Pushes to main branch
+  - Pull requests
+  - Weekly schedule (Sunday 00:00 UTC)
+- **Language:** JavaScript/TypeScript
+- **Queries:** Security and quality checks
+- **Permissions:** security-events write access
+- **Benefits:** Automated security vulnerability scanning
+
+**CI Features:**
+- ✅ Automated testing on every PR/push
+- ✅ Code formatting verification
+- ✅ Linting checks
+- ✅ Test coverage reporting
+- ✅ Dist/ verification to prevent stale builds
+- ✅ Security scanning with CodeQL
+- ✅ Dependency caching for faster builds
+
 ---
 
 ## Code Quality Improvements
@@ -328,7 +378,7 @@ coverage.
 
 #### Test Suite Details
 
-**39 comprehensive unit tests** covering:
+**40 comprehensive unit tests** covering:
 
 1. **`extractAccountInfo()` - 4 tests**
    - Valid JSON extraction
@@ -748,6 +798,65 @@ async function checkSoloVersion(): Promise<SoloVersionInfo> {
 
 ---
 
+## CI/CD Implementation and Fixes
+
+### Initial CI Setup
+
+Three comprehensive GitHub Actions workflows were added to ensure code quality and prevent regressions:
+
+1. **Continuous Integration (ci.yml)** - Runs format checks, linting, and all 40 unit tests on every PR and push
+2. **Check Transpiled JavaScript (check-dist.yml)** - Verifies the bundled dist/index.js is up to date with source code
+3. **CodeQL Analysis (codeql-analysis.yml)** - Automated security scanning on PRs, pushes, and weekly schedule
+
+### CI Fix: Reverting Breaking Security Autofix
+
+**Issue Identified (Commit ccb01ea):**
+
+An automated security fix for "Indirect uncontrolled command line" vulnerability was applied by GitHub's security tools. While well-intentioned, the fix was incomplete and broke the action:
+
+- Changed `executeCommand()` function signature from `executeCommand(command: string)` to `executeCommand(command: string[])`
+- Updated only the function definition, not the 20+ call sites throughout the codebase
+- Caused 7 test failures (only 33/40 tests passing)
+- Dropped coverage from 100%/93.84% to 85.61%/92.42%
+- Broke port forwarding functionality
+- Failed both CI workflows (ci.yml and check-dist.yml)
+
+**Root Cause:**
+
+The security fix attempted to prevent command injection by requiring commands to be passed as arrays instead of strings. However:
+- All call sites still passed strings (e.g., `executeCommand('solo network deploy')`)
+- Test mocks were not updated to match new signature
+- The dist/index.js was rebuilt with broken code
+
+**Resolution (Commit b7d7392):**
+
+Created a revert commit to restore the working implementation:
+- Reverted src/main.ts to working state (before ccb01ea)
+- Reverted dist/index.js and dist/index.js.map
+- All 40 tests now pass ✅
+- Coverage restored to 100% statements/functions/lines, 93.84% branches ✅
+- Coverage file `./coverage/lcov.info` generated successfully ✅
+- Both CI workflows now pass ✅
+
+**Lessons Learned:**
+
+1. **Test before committing:** The security autofix should have been tested locally before being committed
+2. **Update all call sites:** Signature changes require updating all function calls
+3. **Update test mocks:** Test infrastructure must match implementation
+4. **Rebuild dist/:** After any source changes, dist/ must be rebuilt and committed
+
+**Note on Security:**
+
+The command injection concern can be addressed in a future PR with:
+1. Proper implementation that updates all call sites
+2. Updated test suite to match new signature
+3. Thorough testing before merging
+4. Consideration of whether shell execution is needed or can be replaced with Node.js APIs
+
+For now, the original working implementation is restored to unblock development. All CI checks pass successfully.
+
+---
+
 ## Summary
 
 ### What Changed
@@ -755,10 +864,11 @@ async function checkSoloVersion(): Promise<SoloVersionInfo> {
 - ✅ Migrated from composite to TypeScript action
 - ✅ Replaced shell scripts with TypeScript code
 - ✅ Replaced Python script with TypeScript regex
-- ✅ Added comprehensive unit tests (39 tests, 93.84%+ coverage)
+- ✅ Added comprehensive unit tests (40 tests, 93.84%+ coverage)
 - ✅ Added development tooling (ESLint, Prettier, Jest)
 - ✅ Enhanced documentation (local testing, Docker config)
 - ✅ Improved error handling and logging
+- ✅ Added CI/CD workflows (testing, dist verification, security scanning)
 
 ### What Stayed the Same
 
@@ -775,12 +885,14 @@ async function checkSoloVersion(): Promise<SoloVersionInfo> {
 ### Migration Benefits
 
 - 🎯 **Type Safety:** TypeScript prevents runtime errors
-- 🧪 **Testability:** 39 comprehensive unit tests
+- 🧪 **Testability:** 40 comprehensive unit tests with 100% statement/function/line coverage
 - 🛠️ **Maintainability:** Well-structured, documented code
 - 📦 **Self-Contained:** Single bundled file (dist/index.js)
 - 🚀 **Developer Experience:** Modern tooling and workflow
 - 📚 **Documentation:** Enhanced guides for local testing
 - 🔍 **Debuggability:** Source maps and better error messages
+- 🔄 **CI/CD:** Automated testing, linting, and security scanning
+- ✅ **Quality Assurance:** Dist verification prevents stale builds
 
 ---
 
