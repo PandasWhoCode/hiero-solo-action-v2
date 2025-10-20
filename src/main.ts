@@ -31,7 +31,7 @@ interface SoloVersionInfo {
 /**
  * Extract account information from Solo CLI output using regex
  */
-function extractAccountInfo(output: string): AccountInfo | null {
+export function extractAccountInfo(output: string): AccountInfo | null {
   const jsonRegex =
     /\{\s*"accountId":\s*".*?",\s*"publicKey":\s*".*?",\s*"balance":\s*\d+\s*\}/
   const match = output.match(jsonRegex)
@@ -51,7 +51,7 @@ function extractAccountInfo(output: string): AccountInfo | null {
 /**
  * Execute a shell command and return output
  */
-async function executeCommand(
+export async function executeCommand(
   command: string,
   silent: boolean = false
 ): Promise<string> {
@@ -75,7 +75,7 @@ async function executeCommand(
 /**
  * Get input as boolean
  */
-function getBooleanInput(name: string, defaultValue: boolean): boolean {
+export function getBooleanInput(name: string, defaultValue: boolean): boolean {
   const value = core.getInput(name)
   if (value === '') return defaultValue
   return value === 'true'
@@ -84,7 +84,7 @@ function getBooleanInput(name: string, defaultValue: boolean): boolean {
 /**
  * Get all action inputs
  */
-function getInputs(): ActionInputs {
+export function getInputs(): ActionInputs {
   return {
     installMirrorNode: getBooleanInput('installMirrorNode', false),
     hieroVersion: core.getInput('hieroVersion') || 'v0.66.0',
@@ -105,7 +105,7 @@ function getInputs(): ActionInputs {
 /**
  * Check Solo version and determine if it's >= 0.44.0
  */
-async function checkSoloVersion(): Promise<SoloVersionInfo> {
+export async function checkSoloVersion(): Promise<SoloVersionInfo> {
   const output = await executeCommand('solo --version | grep Version', true)
   const versionMatch = output.match(/Version\s+(\S+)/)
   const version = versionMatch ? versionMatch[1] : '0.0.0'
@@ -126,7 +126,7 @@ async function checkSoloVersion(): Promise<SoloVersionInfo> {
 /**
  * Setup prerequisites (Java, Node, etc.)
  */
-async function setupPrerequisites(): Promise<void> {
+export async function setupPrerequisites(): Promise<void> {
   core.info('Setting up prerequisites...')
 
   // These are typically done via setup actions in GitHub Actions
@@ -137,7 +137,7 @@ async function setupPrerequisites(): Promise<void> {
 /**
  * Install Solo CLI
  */
-async function installSolo(version: string): Promise<void> {
+export async function installSolo(version: string): Promise<void> {
   core.info(`Installing Solo CLI version ${version}...`)
   await executeCommand(`npm install -g @hashgraph/solo@${version}`)
   core.info('Solo CLI installed successfully')
@@ -146,7 +146,7 @@ async function installSolo(version: string): Promise<void> {
 /**
  * Setup and deploy Solo test network
  */
-async function deploySoloNetwork(
+export async function deploySoloNetwork(
   inputs: ActionInputs,
   soloGe0440: boolean
 ): Promise<void> {
@@ -250,7 +250,7 @@ async function deploySoloNetwork(
 /**
  * Deploy Mirror Node
  */
-async function deployMirrorNode(
+export async function deployMirrorNode(
   inputs: ActionInputs,
   soloGe0440: boolean
 ): Promise<void> {
@@ -315,7 +315,7 @@ async function deployMirrorNode(
 /**
  * Deploy JSON-RPC-Relay
  */
-async function deployRelay(
+export async function deployRelay(
   inputs: ActionInputs,
   soloGe0440: boolean
 ): Promise<void> {
@@ -354,7 +354,7 @@ async function deployRelay(
 /**
  * Create an account (ECDSA or ED25519)
  */
-async function createAccount(
+export async function createAccount(
   inputs: ActionInputs,
   isEcdsa: boolean,
   soloGe0440: boolean

@@ -4,21 +4,19 @@
 export default {
   clearMocks: true,
   collectCoverage: true,
-  collectCoverageFrom: ['./src/**'],
+  collectCoverageFrom: ['./src/**', '!./src/index.ts'],
   coverageDirectory: './coverage',
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
   coverageReporters: ['json-summary', 'text', 'lcov'],
-  // Uncomment the below lines if you would like to enforce a coverage threshold
-  // for your action. This will fail the build if the coverage is below the
-  // specified thresholds.
-  // coverageThreshold: {
-  //   global: {
-  //     branches: 100,
-  //     functions: 100,
-  //     lines: 100,
-  //     statements: 100
-  //   }
-  // },
+  // Enforce high coverage threshold (93.84% branches, 100% all other metrics)
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 100,
+      lines: 100,
+      statements: 100
+    }
+  },
   extensionsToTreatAsEsm: ['.ts'],
   moduleFileExtensions: ['ts', 'js'],
   preset: 'ts-jest',
