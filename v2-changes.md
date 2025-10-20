@@ -243,6 +243,7 @@ version number:
 Three comprehensive GitHub Actions workflows in `.github/workflows/`:
 
 #### a. **Continuous Integration (ci.yml)**
+
 - **Triggers:** Pull requests and pushes to main branch
 - **Steps:**
   - Checkout code
@@ -255,6 +256,7 @@ Three comprehensive GitHub Actions workflows in `.github/workflows/`:
 - **Benefits:** Ensures code quality and test coverage on every change
 
 #### b. **Check Transpiled JavaScript (check-dist.yml)**
+
 - **Triggers:** Pull requests and pushes to main branch
 - **Purpose:** Verifies `dist/index.js` is up to date with source code
 - **Steps:**
@@ -266,7 +268,8 @@ Three comprehensive GitHub Actions workflows in `.github/workflows/`:
 - **Benefits:** Prevents outdated bundled code from being merged
 
 #### c. **CodeQL Analysis (codeql-analysis.yml)**
-- **Triggers:** 
+
+- **Triggers:**
   - Pushes to main branch
   - Pull requests
   - Weekly schedule (Sunday 00:00 UTC)
@@ -276,6 +279,7 @@ Three comprehensive GitHub Actions workflows in `.github/workflows/`:
 - **Benefits:** Automated security vulnerability scanning
 
 **CI Features:**
+
 - ✅ Automated testing on every PR/push
 - ✅ Code formatting verification
 - ✅ Linting checks
@@ -802,20 +806,28 @@ async function checkSoloVersion(): Promise<SoloVersionInfo> {
 
 ### Initial CI Setup
 
-Three comprehensive GitHub Actions workflows were added to ensure code quality and prevent regressions:
+Three comprehensive GitHub Actions workflows were added to ensure code quality
+and prevent regressions:
 
-1. **Continuous Integration (ci.yml)** - Runs format checks, linting, and all 40 unit tests on every PR and push
-2. **Check Transpiled JavaScript (check-dist.yml)** - Verifies the bundled dist/index.js is up to date with source code
-3. **CodeQL Analysis (codeql-analysis.yml)** - Automated security scanning on PRs, pushes, and weekly schedule
+1. **Continuous Integration (ci.yml)** - Runs format checks, linting, and all 40
+   unit tests on every PR and push
+2. **Check Transpiled JavaScript (check-dist.yml)** - Verifies the bundled
+   dist/index.js is up to date with source code
+3. **CodeQL Analysis (codeql-analysis.yml)** - Automated security scanning on
+   PRs, pushes, and weekly schedule
 
 ### CI Fix: Reverting Breaking Security Autofix
 
 **Issue Identified (Commit ccb01ea):**
 
-An automated security fix for "Indirect uncontrolled command line" vulnerability was applied by GitHub's security tools. While well-intentioned, the fix was incomplete and broke the action:
+An automated security fix for "Indirect uncontrolled command line" vulnerability
+was applied by GitHub's security tools. While well-intentioned, the fix was
+incomplete and broke the action:
 
-- Changed `executeCommand()` function signature from `executeCommand(command: string)` to `executeCommand(command: string[])`
-- Updated only the function definition, not the 20+ call sites throughout the codebase
+- Changed `executeCommand()` function signature from
+  `executeCommand(command: string)` to `executeCommand(command: string[])`
+- Updated only the function definition, not the 20+ call sites throughout the
+  codebase
 - Caused 7 test failures (only 33/40 tests passing)
 - Dropped coverage from 100%/93.84% to 85.61%/92.42%
 - Broke port forwarding functionality
@@ -823,14 +835,18 @@ An automated security fix for "Indirect uncontrolled command line" vulnerability
 
 **Root Cause:**
 
-The security fix attempted to prevent command injection by requiring commands to be passed as arrays instead of strings. However:
-- All call sites still passed strings (e.g., `executeCommand('solo network deploy')`)
+The security fix attempted to prevent command injection by requiring commands to
+be passed as arrays instead of strings. However:
+
+- All call sites still passed strings (e.g.,
+  `executeCommand('solo network deploy')`)
 - Test mocks were not updated to match new signature
 - The dist/index.js was rebuilt with broken code
 
 **Resolution (Commit b7d7392):**
 
 Created a revert commit to restore the working implementation:
+
 - Reverted src/main.ts to working state (before ccb01ea)
 - Reverted dist/index.js and dist/index.js.map
 - All 40 tests now pass ✅
@@ -840,20 +856,26 @@ Created a revert commit to restore the working implementation:
 
 **Lessons Learned:**
 
-1. **Test before committing:** The security autofix should have been tested locally before being committed
-2. **Update all call sites:** Signature changes require updating all function calls
+1. **Test before committing:** The security autofix should have been tested
+   locally before being committed
+2. **Update all call sites:** Signature changes require updating all function
+   calls
 3. **Update test mocks:** Test infrastructure must match implementation
-4. **Rebuild dist/:** After any source changes, dist/ must be rebuilt and committed
+4. **Rebuild dist/:** After any source changes, dist/ must be rebuilt and
+   committed
 
 **Note on Security:**
 
 The command injection concern can be addressed in a future PR with:
+
 1. Proper implementation that updates all call sites
 2. Updated test suite to match new signature
 3. Thorough testing before merging
-4. Consideration of whether shell execution is needed or can be replaced with Node.js APIs
+4. Consideration of whether shell execution is needed or can be replaced with
+   Node.js APIs
 
-For now, the original working implementation is restored to unblock development. All CI checks pass successfully.
+For now, the original working implementation is restored to unblock development.
+All CI checks pass successfully.
 
 ---
 
@@ -885,7 +907,8 @@ For now, the original working implementation is restored to unblock development.
 ### Migration Benefits
 
 - 🎯 **Type Safety:** TypeScript prevents runtime errors
-- 🧪 **Testability:** 40 comprehensive unit tests with 100% statement/function/line coverage
+- 🧪 **Testability:** 40 comprehensive unit tests with 100%
+  statement/function/line coverage
 - 🛠️ **Maintainability:** Well-structured, documented code
 - 📦 **Self-Contained:** Single bundled file (dist/index.js)
 - 🚀 **Developer Experience:** Modern tooling and workflow

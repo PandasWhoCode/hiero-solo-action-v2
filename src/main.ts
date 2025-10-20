@@ -49,10 +49,12 @@ export function extractAccountInfo(output: string): AccountInfo | null {
 }
 
 /**
- * Execute a shell command and return output
+ * Execute a command with arguments and return output
+ * Uses direct command execution instead of bash -c to prevent command injection
  */
 export async function executeCommand(
   command: string,
+  args: string[] = [],
   silent: boolean = false
 ): Promise<string> {
   let output = ''
@@ -68,7 +70,7 @@ export async function executeCommand(
     }
   }
 
-  await exec.exec('bash', ['-c', command], options)
+  await exec.exec(command, args, options)
   return output
 }
 
@@ -106,7 +108,11 @@ export function getInputs(): ActionInputs {
  * Check Solo version and determine if it's >= 0.44.0
  */
 export async function checkSoloVersion(): Promise<SoloVersionInfo> {
-  const output = await executeCommand('solo --version | grep Version', true)
+  const output = await executeCommand(
+    'bash',
+    ['-c', 'solo --version | grep Version'],
+    true
+  )
   const versionMatch = output.match(/Version\s+(\S+)/)
   const version = versionMatch ? versionMatch[1] : '0.0.0'
 
@@ -139,7 +145,7 @@ export async function setupPrerequisites(): Promise<void> {
  */
 export async function installSolo(version: string): Promise<void> {
   core.info(`Installing Solo CLI version ${version}...`)
-  await executeCommand(`npm install -g @hashgraph/solo@${version}`)
+  await executeCommand('npm', ['install', '-g', `@hashgraph/solo@${version}`])
   core.info('Solo CLI installed successfully')
 }
 
@@ -155,95 +161,229 @@ export async function deploySoloNetwork(
   const SOLO_DEPLOYMENT = 'solo-deployment'
 
   core.info('Cleaning up previous runs...')
-  await executeCommand('rm -rf ~/.solo', true)
-  await executeCommand('kind delete cluster --name solo-e2e || true', true)
+  await executeCommand('rm', ['-rf', '~/.solo'], true)
+  await executeCommand(
+    'bash',
+    ['-c', 'kind delete cluster --name solo-e2e || true'],
+    true
+  )
 
   core.info('Creating Kubernetes cluster...')
-  await executeCommand(`kind create cluster -n ${SOLO_CLUSTER_NAME}`)
+  await executeCommand('kind', ['create', 'cluster', '-n', SOLO_CLUSTER_NAME])
 
   core.info('Initializing Solo CLI...')
-  await executeCommand('solo init --dev')
+  await executeCommand('solo', ['init', '--dev'])
 
   if (soloGe0440) {
     core.info('Using Solo CLI commands for version >= 0.44.0')
 
-    await executeCommand(
-      `solo cluster-ref config connect --cluster-ref kind-${SOLO_CLUSTER_NAME} --context kind-${SOLO_CLUSTER_NAME} --dev`
-    )
-    await executeCommand(
-      `solo deployment config create -n ${SOLO_NAMESPACE} --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
-    await executeCommand(
-      `solo deployment cluster attach --deployment ${SOLO_DEPLOYMENT} --cluster-ref kind-${SOLO_CLUSTER_NAME} --num-consensus-nodes 1 --dev`
-    )
-    await executeCommand(
-      `solo keys consensus generate --gossip-keys --tls-keys -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
-    await executeCommand(
-      `solo cluster-ref config setup -s ${SOLO_CLUSTER_NAME} --dev`
-    )
-    await executeCommand(
-      `solo consensus network deploy -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --dev`
-    )
-    await executeCommand(
-      `solo consensus node setup -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --quiet-mode --dev`
-    )
-    await executeCommand(
-      `solo consensus node start -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
+    await executeCommand('solo', [
+      'cluster-ref',
+      'config',
+      'connect',
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--context',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'deployment',
+      'config',
+      'create',
+      '-n',
+      SOLO_NAMESPACE,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'deployment',
+      'cluster',
+      'attach',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--num-consensus-nodes',
+      '1',
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'keys',
+      'consensus',
+      'generate',
+      '--gossip-keys',
+      '--tls-keys',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'cluster-ref',
+      'config',
+      'setup',
+      '-s',
+      SOLO_CLUSTER_NAME,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus',
+      'network',
+      'deploy',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--release-tag',
+      inputs.hieroVersion,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus',
+      'node',
+      'setup',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--release-tag',
+      inputs.hieroVersion,
+      '--quiet-mode',
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus',
+      'node',
+      'start',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   } else {
     core.info('Using Solo CLI commands for version < 0.44.0')
 
-    await executeCommand(
-      `solo cluster-ref connect --cluster-ref kind-${SOLO_CLUSTER_NAME} --context kind-${SOLO_CLUSTER_NAME} --dev`
-    )
-    await executeCommand(
-      `solo deployment create -n ${SOLO_NAMESPACE} --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
-    await executeCommand(
-      `solo deployment add-cluster --deployment ${SOLO_DEPLOYMENT} --cluster-ref kind-${SOLO_CLUSTER_NAME} --num-consensus-nodes 1 --dev`
-    )
-    await executeCommand(
-      `solo node keys --gossip-keys --tls-keys -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
-    await executeCommand(`solo cluster-ref setup -s ${SOLO_CLUSTER_NAME} --dev`)
-    await executeCommand(
-      `solo network deploy -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --dev`
-    )
-    await executeCommand(
-      `solo node setup -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --quiet-mode --dev`
-    )
-    await executeCommand(
-      `solo node start -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
+    await executeCommand('solo', [
+      'cluster-ref',
+      'connect',
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--context',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'deployment',
+      'create',
+      '-n',
+      SOLO_NAMESPACE,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'deployment',
+      'add-cluster',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--num-consensus-nodes',
+      '1',
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'node',
+      'keys',
+      '--gossip-keys',
+      '--tls-keys',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'cluster-ref',
+      'setup',
+      '-s',
+      SOLO_CLUSTER_NAME,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'network',
+      'deploy',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--release-tag',
+      inputs.hieroVersion,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'node',
+      'setup',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--release-tag',
+      inputs.hieroVersion,
+      '--quiet-mode',
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'node',
+      'start',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   }
 
   // List services
   core.info('Listing services in namespace solo:')
-  await executeCommand(`kubectl get svc -n ${SOLO_NAMESPACE}`)
+  await executeCommand('kubectl', ['get', 'svc', '-n', SOLO_NAMESPACE])
 
   // Port forward HAProxy
   const haproxyCheck = await executeCommand(
-    `kubectl get svc haproxy-node1-svc -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`,
+    'bash',
+    [
+      '-c',
+      `kubectl get svc haproxy-node1-svc -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`
+    ],
     true
   )
   if (haproxyCheck.includes('exists')) {
     core.info('Port forwarding HAProxy...')
-    await executeCommand(
+    await executeCommand('bash', [
+      '-c',
       `kubectl port-forward svc/haproxy-node1-svc -n ${SOLO_NAMESPACE} ${inputs.haproxyPort}:50211 &`
-    )
+    ])
   }
 
   // Port forward gRPC proxy
   const grpcCheck = await executeCommand(
-    `kubectl get svc envoy-proxy-node1-svc -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`,
+    'bash',
+    [
+      '-c',
+      `kubectl get svc envoy-proxy-node1-svc -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`
+    ],
     true
   )
   if (grpcCheck.includes('exists')) {
     core.info('Port forwarding gRPC proxy...')
-    await executeCommand(
+    await executeCommand('bash', [
+      '-c',
       `kubectl port-forward svc/envoy-proxy-node1-svc -n ${SOLO_NAMESPACE} ${inputs.grpcProxyPort}:8080 &`
-    )
+    ])
   }
 }
 
@@ -261,18 +401,37 @@ export async function deployMirrorNode(
   core.info('Deploying Mirror Node...')
 
   if (soloGe0440) {
-    await executeCommand(
-      `solo mirror node add --cluster-ref kind-${SOLO_CLUSTER_NAME} --deployment ${SOLO_DEPLOYMENT} --mirror-node-version ${inputs.mirrorNodeVersion} --pinger --dev`
-    )
+    await executeCommand('solo', [
+      'mirror',
+      'node',
+      'add',
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--mirror-node-version',
+      inputs.mirrorNodeVersion,
+      '--pinger',
+      '--dev'
+    ])
   } else {
-    await executeCommand(
-      `solo mirror-node deploy --cluster-ref kind-${SOLO_CLUSTER_NAME} --deployment ${SOLO_DEPLOYMENT} --mirror-node-version ${inputs.mirrorNodeVersion} --pinger --dev`
-    )
+    await executeCommand('solo', [
+      'mirror-node',
+      'deploy',
+      '--cluster-ref',
+      `kind-${SOLO_CLUSTER_NAME}`,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--mirror-node-version',
+      inputs.mirrorNodeVersion,
+      '--pinger',
+      '--dev'
+    ])
   }
 
   // List services
   core.info('Listing services in namespace solo:')
-  await executeCommand(`kubectl get svc -n ${SOLO_NAMESPACE}`)
+  await executeCommand('kubectl', ['get', 'svc', '-n', SOLO_NAMESPACE])
 
   // Port forward mirror node services
   const services = [
@@ -300,14 +459,19 @@ export async function deployMirrorNode(
 
   for (const service of services) {
     const check = await executeCommand(
-      `kubectl get svc ${service.name} -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`,
+      'bash',
+      [
+        '-c',
+        `kubectl get svc ${service.name} -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`
+      ],
       true
     )
     if (check.includes('exists')) {
       core.info(`Port forwarding ${service.name}...`)
-      await executeCommand(
+      await executeCommand('bash', [
+        '-c',
         `kubectl port-forward svc/${service.name} -n ${SOLO_NAMESPACE} ${service.port}:${service.targetPort} &`
-      )
+      ])
     }
   }
 }
@@ -325,29 +489,47 @@ export async function deployRelay(
   core.info('Installing JSON-RPC-Relay...')
 
   if (soloGe0440) {
-    await executeCommand(
-      `solo relay node add -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
+    await executeCommand('solo', [
+      'relay',
+      'node',
+      'add',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   } else {
-    await executeCommand(
-      `solo relay deploy -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
+    await executeCommand('solo', [
+      'relay',
+      'deploy',
+      '-i',
+      'node1',
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   }
 
   // List services
   core.info('Listing services in namespace solo:')
-  await executeCommand(`kubectl get svc -n ${SOLO_NAMESPACE}`)
+  await executeCommand('kubectl', ['get', 'svc', '-n', SOLO_NAMESPACE])
 
   // Port forward relay
   const relayCheck = await executeCommand(
-    `kubectl get svc relay-node1-hedera-json-rpc-relay -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`,
+    'bash',
+    [
+      '-c',
+      `kubectl get svc relay-node1-hedera-json-rpc-relay -n ${SOLO_NAMESPACE} >/dev/null 2>&1 && echo "exists" || echo "not exists"`
+    ],
     true
   )
   if (relayCheck.includes('exists')) {
     core.info('Port forwarding JSON-RPC-Relay...')
-    await executeCommand(
+    await executeCommand('bash', [
+      '-c',
       `kubectl port-forward svc/relay-node1-hedera-json-rpc-relay -n ${SOLO_NAMESPACE} ${inputs.relayPort}:7546 &`
-    )
+    ])
   }
 }
 
@@ -368,23 +550,43 @@ export async function createAccount(
   let output: string
   if (soloGe0440) {
     if (isEcdsa) {
-      output = await executeCommand(
-        `solo ledger account create --generate-ecdsa-key --deployment ${SOLO_DEPLOYMENT} --dev`
-      )
+      output = await executeCommand('solo', [
+        'ledger',
+        'account',
+        'create',
+        '--generate-ecdsa-key',
+        '--deployment',
+        SOLO_DEPLOYMENT,
+        '--dev'
+      ])
     } else {
-      output = await executeCommand(
-        `solo ledger account create --deployment ${SOLO_DEPLOYMENT} --dev`
-      )
+      output = await executeCommand('solo', [
+        'ledger',
+        'account',
+        'create',
+        '--deployment',
+        SOLO_DEPLOYMENT,
+        '--dev'
+      ])
     }
   } else {
     if (isEcdsa) {
-      output = await executeCommand(
-        `solo account create --generate-ecdsa-key --deployment ${SOLO_DEPLOYMENT} --dev`
-      )
+      output = await executeCommand('solo', [
+        'account',
+        'create',
+        '--generate-ecdsa-key',
+        '--deployment',
+        SOLO_DEPLOYMENT,
+        '--dev'
+      ])
     } else {
-      output = await executeCommand(
-        `solo account create --deployment ${SOLO_DEPLOYMENT} --dev`
-      )
+      output = await executeCommand('solo', [
+        'account',
+        'create',
+        '--deployment',
+        SOLO_DEPLOYMENT,
+        '--dev'
+      ])
     }
   }
 
@@ -396,7 +598,11 @@ export async function createAccount(
 
   // Get private key from Kubernetes secret
   const privateKeyOutput = await executeCommand(
-    `kubectl get secret account-key-${accountInfo.accountId} -n ${SOLO_NAMESPACE} -o jsonpath='{.data.privateKey}' | base64 -d`,
+    'bash',
+    [
+      '-c',
+      `kubectl get secret account-key-${accountInfo.accountId} -n ${SOLO_NAMESPACE} -o jsonpath='{.data.privateKey}' | base64 -d`
+    ],
     true
   )
   accountInfo.privateKey = privateKeyOutput.trim()
@@ -406,13 +612,30 @@ export async function createAccount(
     `Updating account ${accountInfo.accountId} with ${inputs.hbarAmount} HBAR...`
   )
   if (soloGe0440) {
-    await executeCommand(
-      `solo ledger account update --account-id "${accountInfo.accountId}" --hbar-amount "${inputs.hbarAmount}" --deployment "${SOLO_DEPLOYMENT}" --dev`
-    )
+    await executeCommand('solo', [
+      'ledger',
+      'account',
+      'update',
+      '--account-id',
+      accountInfo.accountId,
+      '--hbar-amount',
+      inputs.hbarAmount,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   } else {
-    await executeCommand(
-      `solo account update --account-id "${accountInfo.accountId}" --hbar-amount "${inputs.hbarAmount}" --deployment "${SOLO_DEPLOYMENT}" --dev`
-    )
+    await executeCommand('solo', [
+      'account',
+      'update',
+      '--account-id',
+      accountInfo.accountId,
+      '--hbar-amount',
+      inputs.hbarAmount,
+      '--deployment',
+      SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   }
 
   core.info(`Account ID: ${accountInfo.accountId}`)

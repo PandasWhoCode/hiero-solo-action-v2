@@ -69,12 +69,12 @@ describe('executeCommand', () => {
       return 0
     })
 
-    const result = await main.executeCommand('echo test')
+    const result = await main.executeCommand('echo', ['test'])
 
     expect(result).toBe('test output')
     expect(mockExec).toHaveBeenCalledWith(
-      'bash',
-      ['-c', 'echo test'],
+      'echo',
+      ['test'],
       expect.objectContaining({
         silent: false
       })
@@ -84,11 +84,11 @@ describe('executeCommand', () => {
   it('should execute command silently when silent flag is true', async () => {
     mockExec.mockResolvedValue(0)
 
-    await main.executeCommand('echo test', true)
+    await main.executeCommand('echo', ['test'], true)
 
     expect(mockExec).toHaveBeenCalledWith(
-      'bash',
-      ['-c', 'echo test'],
+      'echo',
+      ['test'],
       expect.objectContaining({
         silent: true
       })
@@ -103,7 +103,7 @@ describe('executeCommand', () => {
       return 0
     })
 
-    const result = await main.executeCommand('some command')
+    const result = await main.executeCommand('some', ['command'])
 
     expect(result).toBe('error message')
   })
@@ -119,7 +119,7 @@ describe('executeCommand', () => {
       return 0
     })
 
-    const result = await main.executeCommand('some command')
+    const result = await main.executeCommand('some', ['command'])
 
     expect(result).toBe('stdout textstderr text')
   })
@@ -343,8 +343,8 @@ describe('installSolo', () => {
       'Installing Solo CLI version 0.46.1...'
     )
     expect(mockExec).toHaveBeenCalledWith(
-      'bash',
-      ['-c', 'npm install -g @hashgraph/solo@0.46.1'],
+      'npm',
+      ['install', '-g', '@hashgraph/solo@0.46.1'],
       expect.any(Object)
     )
     expect(mockInfo).toHaveBeenCalledWith('Solo CLI installed successfully')
@@ -589,31 +589,41 @@ describe('run', () => {
     mockGetInput.mockReturnValue('')
     let callCount = 0
 
-    mockExec.mockImplementation(async (_cmd, args, options) => {
-      const cmd = args?.[1] || ''
-      if (cmd.includes('solo --version')) {
-        if (options?.listeners?.stdout) {
-          options.listeners.stdout(Buffer.from('Version 0.46.1'))
+    mockExec.mockImplementation(async (cmd, args, options) => {
+      // Handle bash -c commands
+      if (cmd === 'bash' && args?.[0] === '-c') {
+        const bashCmd = args[1] || ''
+        if (bashCmd.includes('solo --version')) {
+          if (options?.listeners?.stdout) {
+            options.listeners.stdout(Buffer.from('Version 0.46.1'))
+          }
+        } else if (bashCmd.includes('kubectl get secret')) {
+          if (options?.listeners?.stdout) {
+            const priv = bashCmd.includes('1001')
+              ? 'ecdsa-priv'
+              : 'ed25519-priv'
+            options.listeners.stdout(Buffer.from(priv))
+          }
+        } else if (bashCmd.includes('kubectl get svc')) {
+          if (options?.listeners?.stdout) {
+            options.listeners.stdout(Buffer.from('not exists'))
+          }
         }
-      } else if (cmd.includes('account create')) {
-        callCount++
-        if (options?.listeners?.stdout) {
-          const id = callCount === 1 ? '0.0.1001' : '0.0.1002'
-          const key = callCount === 1 ? 'ecdsa-pub' : 'ed25519-pub'
-          options.listeners.stdout(
-            Buffer.from(
-              `{"accountId": "${id}", "publicKey": "${key}", "balance": 0}`
+      }
+      // Handle direct solo commands
+      else if (cmd === 'solo') {
+        const soloArgs = args?.join(' ') || ''
+        if (soloArgs.includes('account create')) {
+          callCount++
+          if (options?.listeners?.stdout) {
+            const id = callCount === 1 ? '0.0.1001' : '0.0.1002'
+            const key = callCount === 1 ? 'ecdsa-pub' : 'ed25519-pub'
+            options.listeners.stdout(
+              Buffer.from(
+                `{"accountId": "${id}", "publicKey": "${key}", "balance": 0}`
+              )
             )
-          )
-        }
-      } else if (cmd.includes('kubectl get secret')) {
-        if (options?.listeners?.stdout) {
-          const priv = cmd.includes('1001') ? 'ecdsa-priv' : 'ed25519-priv'
-          options.listeners.stdout(Buffer.from(priv))
-        }
-      } else if (cmd.includes('kubectl get svc')) {
-        if (options?.listeners?.stdout) {
-          options.listeners.stdout(Buffer.from('not exists'))
+          }
         }
       }
       return 0
