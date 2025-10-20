@@ -53,6 +53,7 @@ export function extractAccountInfo(output: string): AccountInfo | null {
  */
 export async function executeCommand(
   command: string,
+  args: string[] = [],
   silent: boolean = false
 ): Promise<string> {
   let output = ''
@@ -68,7 +69,7 @@ export async function executeCommand(
     }
   }
 
-  await exec.exec('bash', ['-c', command], options)
+  await exec.exec(command, args, options)
   return output
 }
 
@@ -179,18 +180,32 @@ export async function deploySoloNetwork(
     await executeCommand(
       `solo keys consensus generate --gossip-keys --tls-keys -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
     )
-    await executeCommand(
-      `solo cluster-ref config setup -s ${SOLO_CLUSTER_NAME} --dev`
-    )
-    await executeCommand(
-      `solo consensus network deploy -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --dev`
-    )
-    await executeCommand(
-      `solo consensus node setup -i node1 --deployment ${SOLO_DEPLOYMENT} --release-tag ${inputs.hieroVersion} --quiet-mode --dev`
-    )
-    await executeCommand(
-      `solo consensus node start -i node1 --deployment ${SOLO_DEPLOYMENT} --dev`
-    )
+    await executeCommand('solo', [
+      'cluster-ref', 'config', 'setup',
+      '-s', SOLO_CLUSTER_NAME,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus', 'network', 'deploy',
+      '-i', 'node1',
+      '--deployment', SOLO_DEPLOYMENT,
+      '--release-tag', inputs.hieroVersion,
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus', 'node', 'setup',
+      '-i', 'node1',
+      '--deployment', SOLO_DEPLOYMENT,
+      '--release-tag', inputs.hieroVersion,
+      '--quiet-mode',
+      '--dev'
+    ])
+    await executeCommand('solo', [
+      'consensus', 'node', 'start',
+      '-i', 'node1',
+      '--deployment', SOLO_DEPLOYMENT,
+      '--dev'
+    ])
   } else {
     core.info('Using Solo CLI commands for version < 0.44.0')
 
