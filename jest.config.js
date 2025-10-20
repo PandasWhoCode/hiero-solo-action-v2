@@ -8,10 +8,10 @@ export default {
   coverageDirectory: './coverage',
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
   coverageReporters: ['json-summary', 'text', 'lcov'],
-  // Enforce high coverage threshold (93.84% branches, 100% all other metrics)
+  // Enforce high coverage threshold (93% branches due to Istanbul limitations, 100% all others)
   coverageThreshold: {
     global: {
-      branches: 90,
+      branches: 93,
       functions: 100,
       lines: 100,
       statements: 100
