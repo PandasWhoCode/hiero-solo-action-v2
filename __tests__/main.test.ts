@@ -7,6 +7,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 // Create mock functions
 const mockGetInput = jest.fn()
 const mockInfo = jest.fn()
+const mockWarning = jest.fn()
 const mockSetOutput = jest.fn()
 const mockSetFailed = jest.fn()
 const mockExec = jest.fn()
@@ -15,6 +16,7 @@ const mockExec = jest.fn()
 jest.unstable_mockModule('@actions/core', () => ({
   getInput: mockGetInput,
   info: mockInfo,
+  warning: mockWarning,
   setOutput: mockSetOutput,
   setFailed: mockSetFailed
 }))
@@ -122,6 +124,55 @@ describe('executeCommand', () => {
     const result = await main.executeCommand('some', ['command'])
 
     expect(result).toBe('stdout textstderr text')
+  })
+})
+
+describe('sanitizeVersion', () => {
+  it('should allow valid version strings', () => {
+    expect(main.sanitizeVersion('v0.66.0')).toBe('v0.66.0')
+    expect(main.sanitizeVersion('0.46.1')).toBe('0.46.1')
+    expect(main.sanitizeVersion('v1.0.0-beta.1')).toBe('v1.0.0-beta.1')
+    expect(main.sanitizeVersion('2.0.0_rc1')).toBe('2.0.0_rc1')
+  })
+
+  it('should remove invalid characters from version strings', () => {
+    expect(main.sanitizeVersion('v0.66.0; rm -rf /')).toBe('v0.66.0rm-rf')
+    expect(main.sanitizeVersion('v1.0.0 && malicious')).toBe('v1.0.0malicious')
+    expect(main.sanitizeVersion('v1.0.0|echo hack')).toBe('v1.0.0echohack')
+    expect(main.sanitizeVersion('v1.0.0`cmd`')).toBe('v1.0.0cmd')
+    expect(main.sanitizeVersion('v1.0.0$(cmd)')).toBe('v1.0.0cmd')
+  })
+
+  it('should remove spaces and special shell characters', () => {
+    expect(main.sanitizeVersion('v 1.0.0')).toBe('v1.0.0')
+    expect(main.sanitizeVersion('v1.0.0\n')).toBe('v1.0.0')
+    expect(main.sanitizeVersion('v1.0.0\t')).toBe('v1.0.0')
+    expect(main.sanitizeVersion('v1.0.0;')).toBe('v1.0.0')
+    expect(main.sanitizeVersion('v1.0.0&')).toBe('v1.0.0')
+  })
+})
+
+describe('sanitizeNumeric', () => {
+  it('should allow valid numeric strings', () => {
+    expect(main.sanitizeNumeric('123')).toBe('123')
+    expect(main.sanitizeNumeric('0')).toBe('0')
+    expect(main.sanitizeNumeric('10000000')).toBe('10000000')
+  })
+
+  it('should remove non-numeric characters', () => {
+    expect(main.sanitizeNumeric('123; rm -rf /')).toBe('123')
+    expect(main.sanitizeNumeric('100 && malicious')).toBe('100')
+    expect(main.sanitizeNumeric('100|echo hack')).toBe('100')
+    expect(main.sanitizeNumeric('100`cmd`')).toBe('100')
+    expect(main.sanitizeNumeric('100$(cmd)')).toBe('100')
+  })
+
+  it('should remove spaces and special characters', () => {
+    expect(main.sanitizeNumeric('1 2 3')).toBe('123')
+    expect(main.sanitizeNumeric('123.456')).toBe('123456')
+    expect(main.sanitizeNumeric('123-456')).toBe('123456')
+    expect(main.sanitizeNumeric('abc123')).toBe('123')
+    expect(main.sanitizeNumeric('123abc')).toBe('123')
   })
 })
 

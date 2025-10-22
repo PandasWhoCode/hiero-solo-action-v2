@@ -75,6 +75,36 @@ export async function executeCommand(
 }
 
 /**
+ * Sanitize version string to prevent command injection
+ * Only allows alphanumeric, dots, hyphens, and underscores
+ */
+export function sanitizeVersion(version: string): string {
+  // Remove any characters that aren't alphanumeric, dots, hyphens, or underscores
+  const sanitized = version.replace(/[^a-zA-Z0-9._-]/g, '')
+  if (sanitized !== version) {
+    core.warning(
+      `Version string '${version}' contains invalid characters. Sanitized to '${sanitized}'`
+    )
+  }
+  return sanitized
+}
+
+/**
+ * Sanitize numeric input to prevent command injection
+ * Only allows digits
+ */
+export function sanitizeNumeric(value: string): string {
+  // Remove any characters that aren't digits
+  const sanitized = value.replace(/[^0-9]/g, '')
+  if (sanitized !== value) {
+    core.warning(
+      `Numeric value '${value}' contains invalid characters. Sanitized to '${sanitized}'`
+    )
+  }
+  return sanitized
+}
+
+/**
  * Get input as boolean
  */
 export function getBooleanInput(name: string, defaultValue: boolean): boolean {
@@ -84,23 +114,33 @@ export function getBooleanInput(name: string, defaultValue: boolean): boolean {
 }
 
 /**
- * Get all action inputs
+ * Get all action inputs with sanitization
  */
 export function getInputs(): ActionInputs {
   return {
     installMirrorNode: getBooleanInput('installMirrorNode', false),
-    hieroVersion: core.getInput('hieroVersion') || 'v0.66.0',
-    mirrorNodeVersion: core.getInput('mirrorNodeVersion') || 'v0.138.0',
-    mirrorNodePortRest: core.getInput('mirrorNodePortRest') || '5551',
-    mirrorNodePortGrpc: core.getInput('mirrorNodePortGrpc') || '5600',
-    mirrorNodePortWeb3Rest: core.getInput('mirrorNodePortWeb3Rest') || '8545',
+    hieroVersion: sanitizeVersion(core.getInput('hieroVersion') || 'v0.66.0'),
+    mirrorNodeVersion: sanitizeVersion(
+      core.getInput('mirrorNodeVersion') || 'v0.138.0'
+    ),
+    mirrorNodePortRest: sanitizeNumeric(
+      core.getInput('mirrorNodePortRest') || '5551'
+    ),
+    mirrorNodePortGrpc: sanitizeNumeric(
+      core.getInput('mirrorNodePortGrpc') || '5600'
+    ),
+    mirrorNodePortWeb3Rest: sanitizeNumeric(
+      core.getInput('mirrorNodePortWeb3Rest') || '8545'
+    ),
     installRelay: getBooleanInput('installRelay', false),
-    relayPort: core.getInput('relayPort') || '7546',
-    grpcProxyPort: core.getInput('grpcProxyPort') || '9998',
-    haproxyPort: core.getInput('haproxyPort') || '50211',
-    soloVersion: core.getInput('soloVersion') || '0.46.1',
-    javaRestApiPort: core.getInput('javaRestApiPort') || '8084',
-    hbarAmount: core.getInput('hbarAmount') || '10000000'
+    relayPort: sanitizeNumeric(core.getInput('relayPort') || '7546'),
+    grpcProxyPort: sanitizeNumeric(core.getInput('grpcProxyPort') || '9998'),
+    haproxyPort: sanitizeNumeric(core.getInput('haproxyPort') || '50211'),
+    soloVersion: sanitizeVersion(core.getInput('soloVersion') || '0.46.1'),
+    javaRestApiPort: sanitizeNumeric(
+      core.getInput('javaRestApiPort') || '8084'
+    ),
+    hbarAmount: sanitizeNumeric(core.getInput('hbarAmount') || '10000000')
   }
 }
 

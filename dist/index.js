@@ -27292,6 +27292,30 @@ async function executeCommand(command, args = [], silent = false) {
     return output;
 }
 /**
+ * Sanitize version string to prevent command injection
+ * Only allows alphanumeric, dots, hyphens, and underscores
+ */
+function sanitizeVersion(version) {
+    // Remove any characters that aren't alphanumeric, dots, hyphens, or underscores
+    const sanitized = version.replace(/[^a-zA-Z0-9._-]/g, '');
+    if (sanitized !== version) {
+        coreExports.warning(`Version string '${version}' contains invalid characters. Sanitized to '${sanitized}'`);
+    }
+    return sanitized;
+}
+/**
+ * Sanitize numeric input to prevent command injection
+ * Only allows digits
+ */
+function sanitizeNumeric(value) {
+    // Remove any characters that aren't digits
+    const sanitized = value.replace(/[^0-9]/g, '');
+    if (sanitized !== value) {
+        coreExports.warning(`Numeric value '${value}' contains invalid characters. Sanitized to '${sanitized}'`);
+    }
+    return sanitized;
+}
+/**
  * Get input as boolean
  */
 function getBooleanInput(name, defaultValue) {
@@ -27301,23 +27325,23 @@ function getBooleanInput(name, defaultValue) {
     return value === 'true';
 }
 /**
- * Get all action inputs
+ * Get all action inputs with sanitization
  */
 function getInputs() {
     return {
         installMirrorNode: getBooleanInput('installMirrorNode', false),
-        hieroVersion: coreExports.getInput('hieroVersion') || 'v0.66.0',
-        mirrorNodeVersion: coreExports.getInput('mirrorNodeVersion') || 'v0.138.0',
-        mirrorNodePortRest: coreExports.getInput('mirrorNodePortRest') || '5551',
-        mirrorNodePortGrpc: coreExports.getInput('mirrorNodePortGrpc') || '5600',
-        mirrorNodePortWeb3Rest: coreExports.getInput('mirrorNodePortWeb3Rest') || '8545',
+        hieroVersion: sanitizeVersion(coreExports.getInput('hieroVersion') || 'v0.66.0'),
+        mirrorNodeVersion: sanitizeVersion(coreExports.getInput('mirrorNodeVersion') || 'v0.138.0'),
+        mirrorNodePortRest: sanitizeNumeric(coreExports.getInput('mirrorNodePortRest') || '5551'),
+        mirrorNodePortGrpc: sanitizeNumeric(coreExports.getInput('mirrorNodePortGrpc') || '5600'),
+        mirrorNodePortWeb3Rest: sanitizeNumeric(coreExports.getInput('mirrorNodePortWeb3Rest') || '8545'),
         installRelay: getBooleanInput('installRelay', false),
-        relayPort: coreExports.getInput('relayPort') || '7546',
-        grpcProxyPort: coreExports.getInput('grpcProxyPort') || '9998',
-        haproxyPort: coreExports.getInput('haproxyPort') || '50211',
-        soloVersion: coreExports.getInput('soloVersion') || '0.46.1',
-        javaRestApiPort: coreExports.getInput('javaRestApiPort') || '8084',
-        hbarAmount: coreExports.getInput('hbarAmount') || '10000000'
+        relayPort: sanitizeNumeric(coreExports.getInput('relayPort') || '7546'),
+        grpcProxyPort: sanitizeNumeric(coreExports.getInput('grpcProxyPort') || '9998'),
+        haproxyPort: sanitizeNumeric(coreExports.getInput('haproxyPort') || '50211'),
+        soloVersion: sanitizeVersion(coreExports.getInput('soloVersion') || '0.46.1'),
+        javaRestApiPort: sanitizeNumeric(coreExports.getInput('javaRestApiPort') || '8084'),
+        hbarAmount: sanitizeNumeric(coreExports.getInput('hbarAmount') || '10000000')
     };
 }
 /**
