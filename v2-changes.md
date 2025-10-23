@@ -820,9 +820,9 @@ and prevent regressions:
 
 **Security Alert Identified:**
 
-CodeQL security scanning identified multiple instances of "Unsanitized user input
-in command execution" where user-controlled inputs from GitHub Actions were being
-passed directly to command execution without validation.
+CodeQL security scanning identified multiple instances of "Unsanitized user
+input in command execution" where user-controlled inputs from GitHub Actions
+were being passed directly to command execution without validation.
 
 **Vulnerable Code Pattern:**
 
@@ -837,9 +837,23 @@ const inputs = {
 }
 
 // Direct usage in commands (vulnerable)
-await executeCommand('solo', ['network', 'deploy', '--release-tag', inputs.hieroVersion])
-await executeCommand('npm', ['install', '-g', `@hashgraph/solo@${inputs.soloVersion}`])
-await executeCommand('solo', ['account', 'update', '--hbar-amount', inputs.hbarAmount])
+await executeCommand('solo', [
+  'network',
+  'deploy',
+  '--release-tag',
+  inputs.hieroVersion
+])
+await executeCommand('npm', [
+  'install',
+  '-g',
+  `@hashgraph/solo@${inputs.soloVersion}`
+])
+await executeCommand('solo', [
+  'account',
+  'update',
+  '--hbar-amount',
+  inputs.hbarAmount
+])
 ```
 
 **Security Risk:**
@@ -935,7 +949,8 @@ Added comprehensive tests for both sanitization functions (13 new tests):
 - ✅ Enhanced documentation (local testing, Docker config)
 - ✅ Improved error handling and logging
 - ✅ Added CI/CD workflows (testing, dist verification, security scanning)
-- ✅ **Implemented input sanitization to prevent command injection vulnerabilities**
+- ✅ **Implemented input sanitization to prevent command injection
+  vulnerabilities**
 
 ### What Stayed the Same
 
